@@ -1,0 +1,134 @@
+﻿@import "tailwindcss";
+
+/* ═══════════════════════════════════════════
+   PATHY Design System — Outdoor Palette
+   ═══════════════════════════════════════════ */
+
+@theme inline {
+  /* Font */
+  --font-sans: var(--font-inter), "Inter", system-ui, sans-serif;
+
+  /* ── Primary (Mountain) ── */
+  --color-pizarra: #1A2E35;
+  --color-pizarra-dark: #0F1E23;
+  --color-pizarra-light: #2A3E45;
+
+  --color-granito: #4A5C65;
+  --color-granito-light: #6A7C85;
+
+  --color-musgo: #5B8C5A;
+  --color-musgo-dark: #4B7C4A;
+  --color-musgo-light: #6B9C6A;
+
+  --color-roca: #E8EDE7;
+  --color-roca-dark: #D0D8CF;
+
+  --color-niebla: #F8FAFC;
+
+  /* ── Accent ── */
+  --color-atardecer: #E67E4A;
+  --color-atardecer-dark: #D46A36;
+  --color-lago: #3B9EBF;
+  --color-lago-dark: #2B8EAF;
+
+  /* ── Animations ── */
+  --animate-fade-in: fadeIn 0.2s ease-out;
+  --animate-slide-up: slideUp 0.25s ease-out;
+  --animate-slide-down: slideDown 0.25s ease-out;
+}
+
+/* ── Keyframes ── */
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes slideUp {
+  from {
+    transform: translateY(10px);
+    opacity: 0;
+  }
+
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+
+@keyframes slideDown {
+  from {
+    transform: translateY(-10px);
+    opacity: 0;
+  }
+
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+
+@keyframes kenBurns {
+  0% {
+    transform: scale(1);
+  }
+
+  100% {
+    transform: scale(1.08);
+  }
+}
+
+@keyframes float {
+
+  0%,
+  100% {
+    transform: translateY(0px);
+  }
+
+  50% {
+    transform: translateY(-8px);
+  }
+}
+
+.hero-image {
+  animation: kenBurns 20s ease-out forwards;
+}
+
+.animate-float {
+  animation: float 4s ease-in-out infinite;
+}
+
+/* ── Base ── */
+body {
+  background: var(--color-niebla);
+  color: var(--color-pizarra);
+}
+
+button {
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+
+/* ── Scrollbar ── */
+::-webkit-scrollbar {
+  width: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--color-granito-light);
+  border-radius: 999px;
+}
+
+/* ── Selection ── */
+::selection {
+  background: #5B8C5A40;
+  color: var(--color-pizarra);
+}

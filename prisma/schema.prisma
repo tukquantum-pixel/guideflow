@@ -1,0 +1,443 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ─── Auth.js tables ───
+
+model Account {
+  id                String  @id @default(cuid())
+  userId            String
+  type              String
+  provider          String
+  providerAccountId String
+  refresh_token     String? @db.Text
+  access_token      String? @db.Text
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String? @db.Text
+  session_state     String?
+  user              Guide   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+}
+
+model Session {
+  id           String   @id @default(cuid())
+  sessionToken String   @unique
+  userId       String
+  expires      DateTime
+  user         Guide    @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model VerificationToken {
+  identifier String
+  token      String   @unique
+  expires    DateTime
+
+  @@unique([identifier, token])
+}
+
+// ─── Domain models (from ERD 04.2.1) ───
+
+enum StripeStatus {
+  NOT_CONNECTED
+  ONBOARDING
+  ACTIVE
+  DISABLED
+}
+
+enum GuidePlan {
+  STARTER
+  PEAK
+}
+
+enum VerificationLevel {
+  NONE
+  PENDING
+  VERIFIED
+}
+
+enum CredentialStatus {
+  PENDING
+  APPROVED
+  REJECTED
+  EXPIRED
+}
+
+enum CredentialType {
+  TITULO         // Titulación oficial
+  SEGURO         // Póliza RC / accidentes
+  LICENCIA       // Licencia federativa / municipal
+  EXPERIENCIA    // Certificado experiencia
+  IDENTIDAD      // DNI / pasaporte
+}
+
+enum Difficulty {
+  LOW
+  MEDIUM
+  HIGH
+}
+
+enum SlotStatus {
+  AVAILABLE
+  FULL
+  CANCELLED
+}
+
+enum BookingStatus {
+  PENDING
+  CONFIRMED
+  CANCELLED
+  COMPLETED
+}
+
+enum PaymentStatus {
+  PENDING
+  SUCCEEDED
+  REFUNDED
+  FAILED
+}
+
+enum UserPlan {
+  FREE
+  EXPLORER
+  PEAK
+}
+
+model Guide {
+  id              String       @id @default(uuid())
+  email           String       @unique
+  name            String
+  slug            String       @unique
+  password        String?
+  phone           String?
+  bio             String?
+  avatarUrl       String?
+  zone            String?
+  languages       String[]
+  stripeAccountId String?
+  stripeStatus    StripeStatus @default(NOT_CONNECTED)
+  plan            GuidePlan    @default(STARTER)
+  emailVerified   DateTime?
+  image           String?
+  createdAt       DateTime     @default(now())
+  deletedAt       DateTime?
+
+  // Marketplace fields
+  serviceRadius      Float?     // Radio en km donde opera
+  marketplaceEnabled Boolean    @default(false)
+  certifications     String?    @db.Text  // Titulaciones (texto libre legacy)
+  yearsExperience    Int?
+  verificationLevel  VerificationLevel @default(NONE)
+
+  // Multi-profession fields
+  professionType     String?    // "guia_montana", "instructor_surf", "fotografo", etc.
+  professionCategory String?    // "montana", "agua", "aire", "nieve", "bici", etc.
+  specializations    String[]   // Array de especialidades
+  equipment          Json?      // Equipo que ofrece
+  minAge             Int?       // Edad mínima para participantes
+  rentalIncluded     Boolean    @default(false)
+
+  accounts   Account[]
+  sessions   Session[]
+  activities Activity[]
+  bookings   Booking[]
+  location   Location?
+  reviews      Review[]
+  credentials  Credential[]
+
+  @@index([slug])
+}
+
+model Activity {
+  id               String    @id @default(uuid())
+  guideId          String
+  title            String
+  description      String?   @db.Text
+  priceCents       Int
+  durationMinutes  Int
+  maxParticipants  Int
+  category         String    @default("other")
+  difficulty       Difficulty @default(MEDIUM)
+  meetingPoint     String?
+  meetingPointUrl  String?
+  meetingLat       Float?
+  meetingLng       Float?
+  includes         String?   @db.Text
+  whatToBring      String?   @db.Text
+  weatherDependent Boolean   @default(false)
+  active           Boolean   @default(true)
+  photos           String[]
+  createdAt        DateTime  @default(now())
+
+  guide     Guide      @relation(fields: [guideId], references: [id], onDelete: Cascade)
+  timeSlots TimeSlot[]
+  track     Track?
+  savedBy   SavedRoute[]
+
+  @@index([guideId, active])
+}
+
+model TimeSlot {
+  id             String     @id @default(uuid())
+  activityId     String
+  date           DateTime   @db.Date
+  startTime      String
+  spotsRemaining Int
+  status         SlotStatus @default(AVAILABLE)
+  createdAt      DateTime   @default(now())
+
+  activity Activity  @relation(fields: [activityId], references: [id], onDelete: Cascade)
+  bookings Booking[]
+
+  @@index([activityId, date, status])
+}
+
+model Booking {
+  id            String        @id @default(uuid())
+  timeSlotId    String
+  guideId       String
+  customerName  String
+  customerEmail String
+  customerPhone String?
+  numPeople     Int           @default(1)
+  notes         String?       @db.Text
+  status        BookingStatus @default(PENDING)
+  createdAt     DateTime      @default(now())
+
+  timeSlot TimeSlot @relation(fields: [timeSlotId], references: [id])
+  guide    Guide    @relation(fields: [guideId], references: [id])
+  payment  Payment?
+
+  @@index([guideId, createdAt])
+}
+
+model Payment {
+  id               String        @id @default(uuid())
+  bookingId        String        @unique
+  stripePaymentId  String?
+  amountCents      Int
+  platformFeeCents Int           @default(0)
+  status           PaymentStatus @default(PENDING)
+  createdAt        DateTime      @default(now())
+
+  booking Booking @relation(fields: [bookingId], references: [id])
+}
+
+model Track {
+  id            String   @id @default(uuid())
+  activityId    String   @unique
+  name          String
+  gpxData       String   @db.Text
+  geojson       String?  @db.Text
+  distance      Float?
+  elevationGain Float?
+  elevationLoss Float?
+  durationEst   Int?
+  routeType       String?    // "circular", "lineal", "ida-vuelta"
+  seasonRecommended String[]
+  minElevation    Float?
+  maxElevation    Float?
+  createdAt     DateTime @default(now())
+
+  activity   Activity         @relation(fields: [activityId], references: [id], onDelete: Cascade)
+  stages     Stage[]
+  userPhotos UserRoutePhoto[]
+}
+
+model Stage {
+  id            String   @id @default(uuid())
+  trackId       String
+  name          String
+  description   String?  @db.Text
+  order         Int
+  startPoint    Json
+  endPoint      Json
+  distance      Float?
+  duration      Int?
+  elevationGain Float?
+  elevationLoss Float?
+  difficulty    String?
+  terrain       String?
+
+  track       Track        @relation(fields: [trackId], references: [id], onDelete: Cascade)
+  photos      StagePhoto[]
+  checkpoints Checkpoint[]
+
+  @@index([trackId, order])
+}
+
+model Checkpoint {
+  id            String  @id @default(uuid())
+  stageId       String
+  name          String
+  type          String  // viewpoint, water, shelter, summit, photo_spot, danger
+  lat           Float
+  lng           Float
+  elevation     Float?
+  description   String? @db.Text
+  order         Int
+  timeFromStart Int?
+
+  stage  Stage             @relation(fields: [stageId], references: [id], onDelete: Cascade)
+  photos CheckpointPhoto[]
+
+  @@index([stageId, order])
+}
+
+model StagePhoto {
+  id         String   @id @default(uuid())
+  stageId    String
+  url        String
+  caption    String?
+  lat        Float?
+  lng        Float?
+  order      Int      @default(0)
+  isFeatured Boolean  @default(false)
+  createdAt  DateTime @default(now())
+
+  stage Stage @relation(fields: [stageId], references: [id], onDelete: Cascade)
+
+  @@index([stageId])
+}
+
+model CheckpointPhoto {
+  id           String  @id @default(uuid())
+  checkpointId String
+  url          String
+  caption      String?
+  order        Int     @default(0)
+
+  checkpoint Checkpoint @relation(fields: [checkpointId], references: [id], onDelete: Cascade)
+
+  @@index([checkpointId])
+}
+
+model UserRoutePhoto {
+  id        String   @id @default(uuid())
+  trackId   String
+  userId    String
+  url       String
+  caption   String?
+  lat       Float?
+  lng       Float?
+  approved  Boolean  @default(false)
+  createdAt DateTime @default(now())
+
+  track Track   @relation(fields: [trackId], references: [id], onDelete: Cascade)
+  user  AppUser @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([trackId, approved])
+}
+
+// ─── Marketplace models ───
+
+model Location {
+  id       String @id @default(uuid())
+  guideId  String @unique
+  address  String
+  lat      Float
+  lng      Float
+  city     String?
+  region   String?
+  country  String @default("España")
+
+  guide Guide @relation(fields: [guideId], references: [id], onDelete: Cascade)
+
+  @@index([lat, lng])
+}
+
+model Review {
+  id          String   @id @default(uuid())
+  guideId     String
+  clientName  String
+  clientEmail String?
+  rating      Int      // 1-5
+  comment     String?  @db.Text
+  verified    Boolean  @default(false)
+  createdAt   DateTime @default(now())
+
+  guide Guide @relation(fields: [guideId], references: [id], onDelete: Cascade)
+
+  @@index([guideId, rating])
+}
+
+model Credential {
+  id            String           @id @default(uuid())
+  guideId       String
+  type          CredentialType
+  name          String           // "Técnico Deportivo Media Montaña"
+  issuingBody   String?          // "AEGM", "Federación Aragonesa"
+  documentUrl   String           // URL del documento subido
+  issueDate     DateTime?
+  expiryDate    DateTime?        // null = sin caducidad
+  coverageAmount Int?            // Para seguros: euros de cobertura
+  status        CredentialStatus @default(PENDING)
+  verifiedAt    DateTime?
+  verifiedBy    String?          // ID del revisor
+  rejectionNote String?          // Motivo de rechazo
+  createdAt     DateTime         @default(now())
+
+  guide Guide @relation(fields: [guideId], references: [id], onDelete: Cascade)
+
+  @@index([guideId, status])
+  @@index([expiryDate])
+}
+
+// ─── B2C User models ───
+
+model AppUser {
+  id          String   @id @default(uuid())
+  email       String   @unique
+  name        String
+  password    String?
+  avatarUrl   String?
+  plan        UserPlan @default(FREE)
+  isAdmin     Boolean  @default(false)
+  stripeCustomerId String?
+  stripeSubId String?
+  createdAt   DateTime @default(now())
+
+  savedRoutes    SavedRoute[]
+  recordedRoutes RecordedRoute[]
+  userPhotos     UserRoutePhoto[]
+}
+
+model SavedRoute {
+  id         String   @id @default(uuid())
+  userId     String
+  activityId String
+  notes      String?
+  savedAt    DateTime @default(now())
+
+  user     AppUser  @relation(fields: [userId], references: [id], onDelete: Cascade)
+  activity Activity @relation(fields: [activityId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, activityId])
+  @@index([userId])
+}
+
+model RecordedRoute {
+  id            String   @id @default(uuid())
+  userId        String
+  title         String
+  coordinates   Json     // [[lng, lat, alt?, timestamp?], ...]
+  distance      Float    // meters
+  elevationGain Float    // meters
+  duration      Int      // seconds
+  gpxData       String?  @db.Text
+  synced        Boolean  @default(true)
+  startedAt     DateTime
+  finishedAt    DateTime
+  createdAt     DateTime @default(now())
+
+  user AppUser @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+}

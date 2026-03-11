@@ -1,0 +1,42 @@
+{
+  "name": "guideflow",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "dev": "next dev -p 3005",
+    "build": "next build",
+    "start": "next start -p 3005",
+    "lint": "eslint"
+  },
+  "dependencies": {
+    "@auth/prisma-adapter": "^2.11.1",
+    "@aws-sdk/client-s3": "^3.1004.0",
+    "@aws-sdk/s3-request-presigner": "^3.1004.0",
+    "@prisma/client": "^6.19.2",
+    "@stripe/stripe-js": "^8.9.0",
+    "@tmcw/togeojson": "^7.1.2",
+    "@types/leaflet": "^1.9.21",
+    "@xmldom/xmldom": "^0.8.11",
+    "bcryptjs": "^3.0.3",
+    "dotenv": "^17.3.1",
+    "leaflet": "^1.9.4",
+    "next": "16.1.6",
+    "next-auth": "^5.0.0-beta.30",
+    "prisma": "^6.19.2",
+    "react": "19.2.3",
+    "react-dom": "19.2.3",
+    "react-leaflet": "^5.0.0",
+    "stripe": "^20.4.1"
+  },
+  "devDependencies": {
+    "@tailwindcss/postcss": "^4",
+    "@types/bcryptjs": "^2.4.6",
+    "@types/node": "^20",
+    "@types/react": "^19",
+    "@types/react-dom": "^19",
+    "eslint": "^9",
+    "eslint-config-next": "16.1.6",
+    "tailwindcss": "^4",
+    "typescript": "^5"
+  }
+}
