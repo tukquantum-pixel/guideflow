@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server"
 import bcryptjs from "bcryptjs"
 import { prisma } from "@/lib/db"
+import { signMobileJwt } from "@/lib/mobile-jwt"
 
 export async function POST(req: Request) {
     try {
@@ -23,7 +24,9 @@ export async function POST(req: Request) {
             select: { id: true, email: true, name: true },
         })
 
-        return NextResponse.json(user, { status: 201 })
+        const token = signMobileJwt({ id: user.id, email: user.email, role: "user" })
+
+        return NextResponse.json({ user, token }, { status: 201 })
     } catch (error) {
         console.error("[USER_REGISTER]", error)
         return NextResponse.json({ error: "Error al registrar" }, { status: 500 })

@@ -1,11 +1,11 @@
 import { NextResponse } from "next/server"
-import { auth } from "@/lib/auth"
 import { prisma } from "@/lib/db"
+import { mobileOrSessionAuth } from "@/lib/mobile-or-session-auth"
 
 export async function POST(req: Request) {
     try {
-        const session = await auth()
-        if (!session?.user?.id) return NextResponse.json({ error: "No autenticado" }, { status: 401 })
+        const authed = await mobileOrSessionAuth()
+        if (!authed) return NextResponse.json({ error: "No autenticado" }, { status: 401 })
 
         const body = await req.json()
         const { title, coordinates, distance, elevationGain, duration, startedAt, finishedAt } = body
@@ -16,7 +16,7 @@ export async function POST(req: Request) {
 
         const route = await prisma.recordedRoute.create({
             data: {
-                userId: session.user.id,
+                userId: authed.id,
                 title: title || `Ruta ${new Date().toLocaleDateString("es-ES")}`,
                 coordinates, distance: distance || 0,
                 elevationGain: elevationGain || 0, duration: duration || 0,
@@ -33,11 +33,11 @@ export async function POST(req: Request) {
 
 export async function GET() {
     try {
-        const session = await auth()
-        if (!session?.user?.id) return NextResponse.json({ error: "No autenticado" }, { status: 401 })
+        const authed = await mobileOrSessionAuth()
+        if (!authed) return NextResponse.json({ error: "No autenticado" }, { status: 401 })
 
         const routes = await prisma.recordedRoute.findMany({
-            where: { userId: session.user.id },
+            where: { userId: authed.id },
             orderBy: { createdAt: "desc" },
             select: { id: true, title: true, distance: true, elevationGain: true, duration: true, createdAt: true },
         })

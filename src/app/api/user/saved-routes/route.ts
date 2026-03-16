@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server"
-import { auth } from "@/lib/auth"
+import { mobileOrSessionAuth } from "@/lib/mobile-or-session-auth"
 import { prisma } from "@/lib/db"
 
 async function resolveUserId(session: any): Promise<string | null> {
@@ -21,9 +21,9 @@ async function resolveUserId(session: any): Promise<string | null> {
 
 export async function GET() {
     try {
-        const session = await auth()
-        const userId = await resolveUserId(session)
-        if (!userId) return NextResponse.json({ error: "No autenticado" }, { status: 401 })
+        const authed = await mobileOrSessionAuth()
+        if (!authed) return NextResponse.json({ error: "No autenticado" }, { status: 401 })
+        const userId = authed.id
 
         const saved = await prisma.savedRoute.findMany({
             where: { userId },
@@ -49,9 +49,9 @@ export async function GET() {
 
 export async function POST(req: NextRequest) {
     try {
-        const session = await auth()
-        const userId = await resolveUserId(session)
-        if (!userId) return NextResponse.json({ error: "No autenticado" }, { status: 401 })
+        const authed = await mobileOrSessionAuth()
+        if (!authed) return NextResponse.json({ error: "No autenticado" }, { status: 401 })
+        const userId = authed.id
 
         const user = await prisma.appUser.findUnique({ where: { id: userId }, select: { plan: true } })
         // FREE: up to 5 saved routes; EXPLORER/PEAK: unlimited
@@ -71,9 +71,9 @@ export async function POST(req: NextRequest) {
 
 export async function DELETE(req: NextRequest) {
     try {
-        const session = await auth()
-        const userId = await resolveUserId(session)
-        if (!userId) return NextResponse.json({ error: "No autenticado" }, { status: 401 })
+        const authed = await mobileOrSessionAuth()
+        if (!authed) return NextResponse.json({ error: "No autenticado" }, { status: 401 })
+        const userId = authed.id
 
         const { activityId } = await req.json()
         await prisma.savedRoute.delete({ where: { userId_activityId: { userId, activityId } } })
