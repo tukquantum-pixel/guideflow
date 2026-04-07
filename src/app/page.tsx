@@ -1,5 +1,7 @@
-﻿import Link from "next/link"
+import Link from "next/link"
 import { prisma } from "@/lib/db"
+
+export const dynamic = 'force-dynamic'
 import { getRouteImage, classifyRoute, getTerrainLabel } from "@/lib/route-images"
 import { unstable_cache } from "next/cache"
 import { CATEGORIES } from "@/lib/professions"

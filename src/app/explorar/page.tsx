@@ -1,3 +1,4 @@
+export const dynamic = "force-dynamic"
 ﻿import { prisma } from "@/lib/db"
 import { getRouteImage, classifyRoute, getTerrainLabel } from "@/lib/route-images"
 import Link from "next/link"
