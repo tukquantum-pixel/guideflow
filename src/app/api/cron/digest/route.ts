@@ -17,7 +17,7 @@ export async function POST(req: NextRequest) {
     const expiredCredentials = await prisma.credential.updateMany({
         where: {
             status: "APPROVED",
-            updatedAt: { lt: oneYearAgo },
+            createdAt: { lt: oneYearAgo },
         },
         data: { status: "EXPIRED" },
     })
