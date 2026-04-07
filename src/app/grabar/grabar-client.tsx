@@ -155,13 +155,29 @@ export function GrabarClient({ userName }: { userName: string }) {
         lastPointRef.current = p
     }, [])
 
-    const gpsOpts = { enableHighAccuracy: true, maximumAge: 0, timeout: 15000 }
-
     const startRecording = useCallback(() => {
         if (!navigator.geolocation) { setGpsError("unavailable"); return }
         setGpsError("none"); setState("recording"); startTimeRef.current = Date.now(); setAccuracy(null)
         timerRef.current = setInterval(() => setElapsed(Math.floor((Date.now() - startTimeRef.current) / 1000)), 1000)
-        watchIdRef.current = navigator.geolocation.watchPosition(onPosition, handleGpsError, gpsOpts)
+
+        // Try high accuracy first, fallback to low accuracy after 10s
+        const tryWatch = (highAccuracy: boolean) => {
+            watchIdRef.current = navigator.geolocation.watchPosition(
+                onPosition,
+                (err) => {
+                    if (highAccuracy && (err.code === 2 || err.code === 3)) {
+                        // High accuracy failed → retry with low accuracy (WiFi/cell)
+                        console.log("⚠️ GPS preciso no disponible, usando WiFi/antenas...")
+                        if (watchIdRef.current !== null) navigator.geolocation.clearWatch(watchIdRef.current)
+                        tryWatch(false)
+                    } else {
+                        handleGpsError(err)
+                    }
+                },
+                { enableHighAccuracy: highAccuracy, maximumAge: 5000, timeout: highAccuracy ? 10000 : 20000 }
+            )
+        }
+        tryWatch(true)
     }, [onPosition, handleGpsError])
 
     const pauseRecording = () => { setState("paused"); if (watchIdRef.current !== null) navigator.geolocation.clearWatch(watchIdRef.current); if (timerRef.current) clearInterval(timerRef.current) }
@@ -247,10 +263,13 @@ export function GrabarClient({ userName }: { userName: string }) {
                         {/* GPS searching */}
                         {state === "recording" && points.length === 0 && (
                             <div className="absolute inset-0 z-[999] bg-pizarra/60 flex items-center justify-center">
-                                <div className="text-center text-white space-y-2">
+                                <div className="text-center text-white space-y-3">
                                     <p className="text-3xl animate-pulse">📡</p>
                                     <p className="font-bold">Buscando señal GPS...</p>
                                     <p className="text-sm text-white/70">Asegúrate de estar al aire libre</p>
+                                    <button onClick={() => { stopRecording(); resetAll() }} className="mt-2 px-5 py-2 bg-white/20 hover:bg-white/30 rounded-lg text-sm font-medium transition">
+                                        ✕ Cancelar
+                                    </button>
                                 </div>
                             </div>
                         )}

@@ -1,44 +1,24 @@
-﻿import { S3Client, PutObjectCommand, DeleteObjectCommand, GetObjectCommand } from "@aws-sdk/client-s3"
-import { getSignedUrl } from "@aws-sdk/s3-request-presigner"
+import { writeFile, unlink, mkdir } from "fs/promises"
+import path from "path"
 import { randomUUID } from "crypto"
 
-const BUCKET = process.env.S3_BUCKET || "PATHY-uploads"
-const REGION = process.env.S3_REGION || "auto"
+const UPLOAD_DIR = path.join(process.cwd(), "public", "uploads")
+const BASE_URL = process.env.NEXT_PUBLIC_API_URL || ""
 
-const client = new S3Client({
-    region: REGION,
-    endpoint: process.env.S3_ENDPOINT || undefined,
-    credentials: process.env.S3_ACCESS_KEY ? {
-        accessKeyId: process.env.S3_ACCESS_KEY,
-        secretAccessKey: process.env.S3_SECRET_KEY || "",
-    } : undefined,
-    forcePathStyle: !!process.env.S3_ENDPOINT,
-})
-
-export async function uploadFile(buffer: Buffer, folder: string, mimeType: string, ext: string): Promise<string> {
-    const key = `${folder}/${randomUUID()}.${ext}`
-    await client.send(new PutObjectCommand({
-        Bucket: BUCKET, Key: key, Body: buffer,
-        ContentType: mimeType, CacheControl: "public, max-age=31536000",
-    }))
-    if (process.env.S3_PUBLIC_URL) return `${process.env.S3_PUBLIC_URL}/${key}`
-    return `https://${BUCKET}.s3.${REGION}.amazonaws.com/${key}`
+export async function uploadFile(buffer: Buffer, folder: string, _mimeType: string, ext: string): Promise<string> {
+    const dir = path.join(UPLOAD_DIR, folder)
+    await mkdir(dir, { recursive: true })
+    const filename = `${randomUUID()}.${ext}`
+    await writeFile(path.join(dir, filename), buffer)
+    return `${BASE_URL}/uploads/${folder}/${filename}`
 }
 
 export async function deleteFile(url: string): Promise<void> {
-    const key = url.split("/").slice(3).join("/")
-    await client.send(new DeleteObjectCommand({ Bucket: BUCKET, Key: key }))
-}
-
-export async function getPresignedUploadUrl(folder: string, ext: string): Promise<{ url: string; key: string }> {
-    const key = `${folder}/${randomUUID()}.${ext}`
-    const url = await getSignedUrl(client, new PutObjectCommand({
-        Bucket: BUCKET, Key: key, ContentType: `image/${ext}`,
-    }), { expiresIn: 600 })
-    return { url, key }
+    const relative = url.replace(BASE_URL, "").replace(/^\/uploads\//, "")
+    const filePath = path.join(UPLOAD_DIR, relative)
+    try { await unlink(filePath) } catch { /* file may not exist */ }
 }
 
 export function getPublicUrl(key: string): string {
-    if (process.env.S3_PUBLIC_URL) return `${process.env.S3_PUBLIC_URL}/${key}`
-    return `https://${BUCKET}.s3.${REGION}.amazonaws.com/${key}`
+    return `${BASE_URL}/uploads/${key}`
 }

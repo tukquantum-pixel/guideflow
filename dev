@@ -1,0 +1,19 @@
+#!/bin/bash
+# PATHY Dev Server Launcher
+cd "$(dirname "$0")"
+echo "🏔️ PATHY — Arrancando servidor de desarrollo..."
+echo ""
+echo "📊 Verificando PostgreSQL..."
+if PGPASSWORD=dev psql -h localhost -p 5470 -U guideflow -d guideflow -c "SELECT 1" > /dev/null 2>&1; then
+    echo "✅ PostgreSQL OK (puerto 5470)"
+else
+    echo "⚠️  PostgreSQL no responde. Arrancando Docker..."
+    docker compose up -d
+    sleep 3
+fi
+echo ""
+echo "🚀 Arrancando Next.js en puerto 3005..."
+echo "   → http://localhost:3005"
+echo "   → Login: test@demo.com / demo1234"
+echo ""
+npm run dev

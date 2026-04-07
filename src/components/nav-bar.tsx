@@ -1,10 +1,11 @@
-﻿import Link from "next/link"
+import Link from "next/link"
 import { auth } from "@/lib/auth"
 import { UserMenu } from "./user-menu"
 import { MountainIcon, ChartIcon, BookmarkIcon } from "@/components/icons"
 
 export async function NavBar({ variant = "light" }: { variant?: "light" | "dark" | "transparent" }) {
-    const session = await auth()
+    let session = null
+    try { session = await auth() } catch { /* stale cookie — treat as logged out */ }
     const role = (session?.user as any)?.role as string | undefined
     const isGuide = role === "guide"
     const isUser = !!session?.user
