@@ -16,7 +16,7 @@ export async function POST(req: NextRequest) {
 
         // Check if user already reviewed this guide
         const existing = await prisma.review.findFirst({
-            where: { guideId, authorEmail: authed.email },
+            where: { guideId, clientEmail: authed.email },
         })
         if (existing) {
             return NextResponse.json({ error: "Ya has valorado a este guía" }, { status: 409 })
@@ -25,9 +25,8 @@ export async function POST(req: NextRequest) {
         const review = await prisma.review.create({
             data: {
                 guideId,
-                bookingId: bookingId || null,
-                authorName: authed.name || "Anónimo",
-                authorEmail: authed.email,
+                clientName: authed.name || "Anónimo",
+                clientEmail: authed.email,
                 rating,
                 comment: comment || null,
             },
