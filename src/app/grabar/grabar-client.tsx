@@ -105,6 +105,26 @@ export function GrabarClient({ userName }: { userName: string }) {
             tileLayerRef.current = L.tileLayer(lyr.url, { attribution: lyr.attr, maxZoom: lyr.maxZoom || 19 }).addTo(map)
             mapInstance.current = map
             polylineRef.current = L.polyline([], { color: "#5B8C5A", weight: 4, opacity: 0.85 }).addTo(map)
+
+            // Request initial location to prompt permission and center map before recording
+            if (navigator.geolocation) {
+                navigator.geolocation.getCurrentPosition(
+                    (pos) => {
+                        setAccuracy(pos.coords.accuracy); setGpsError("none")
+                        const p: GeoPoint = { lat: pos.coords.latitude, lng: pos.coords.longitude, alt: pos.coords.altitude || 0, time: Date.now() }
+                        lastPointRef.current = p
+                        if (mapInstance.current) {
+                            mapInstance.current.setView([p.lat, p.lng], 15)
+                            markerRef.current = L.marker([p.lat, p.lng], { icon: L.divIcon({ html: '<div class="pathy-pos"></div>', className: "", iconSize: [16, 16], iconAnchor: [8, 8] }) }).addTo(mapInstance.current)
+                            if (pos.coords.accuracy < 100) {
+                                accuracyCircleRef.current = L.circle([p.lat, p.lng], { radius: pos.coords.accuracy, color: "#5B8C5A", weight: 1, fillOpacity: 0.08 }).addTo(mapInstance.current)
+                            }
+                        }
+                    },
+                    (err) => console.log("Initial GPS failed:", err),
+                    { enableHighAccuracy: true, timeout: 60000, maximumAge: 0 }
+                )
+            }
         })
         return () => { mapInstance.current?.remove(); mapInstance.current = null }
     }, [])
@@ -160,28 +180,29 @@ export function GrabarClient({ userName }: { userName: string }) {
         setGpsError("none"); setState("recording"); startTimeRef.current = Date.now(); setAccuracy(null)
         timerRef.current = setInterval(() => setElapsed(Math.floor((Date.now() - startTimeRef.current) / 1000)), 1000)
 
-        // Try high accuracy first, fallback to low accuracy after 10s
+        // Try high accuracy first, fallback to low accuracy after 60s timeout
         const tryWatch = (highAccuracy: boolean) => {
             watchIdRef.current = navigator.geolocation.watchPosition(
                 onPosition,
                 (err) => {
                     if (highAccuracy && (err.code === 2 || err.code === 3)) {
                         // High accuracy failed → retry with low accuracy (WiFi/cell)
-                        console.log("⚠️ GPS preciso no disponible, usando WiFi/antenas...")
+                        console.log("⚠️ GPS preciso no disponible o tardó mucho, usando WiFi/antenas...")
                         if (watchIdRef.current !== null) navigator.geolocation.clearWatch(watchIdRef.current)
                         tryWatch(false)
                     } else {
                         handleGpsError(err)
                     }
                 },
-                { enableHighAccuracy: highAccuracy, maximumAge: 5000, timeout: highAccuracy ? 10000 : 20000 }
+                // Critical fix: 60s timeout to allow time for the user to press "Allow" in the permissions pop-up
+                { enableHighAccuracy: highAccuracy, maximumAge: 5000, timeout: highAccuracy ? 60000 : 120000 }
             )
         }
         tryWatch(true)
     }, [onPosition, handleGpsError])
 
     const pauseRecording = () => { setState("paused"); if (watchIdRef.current !== null) navigator.geolocation.clearWatch(watchIdRef.current); if (timerRef.current) clearInterval(timerRef.current) }
-    const resumeRecording = () => { setState("recording"); timerRef.current = setInterval(() => setElapsed(Math.floor((Date.now() - startTimeRef.current) / 1000)), 1000); watchIdRef.current = navigator.geolocation.watchPosition(onPosition, handleGpsError, gpsOpts) }
+    const resumeRecording = () => { setState("recording"); timerRef.current = setInterval(() => setElapsed(Math.floor((Date.now() - startTimeRef.current) / 1000)), 1000); watchIdRef.current = navigator.geolocation.watchPosition(onPosition, handleGpsError, { enableHighAccuracy: true, maximumAge: 5000, timeout: 60000 }) }
     const stopRecording = () => { setState("done"); if (watchIdRef.current !== null) navigator.geolocation.clearWatch(watchIdRef.current); if (timerRef.current) clearInterval(timerRef.current); setFollowUser(false) }
 
     const saveRoute = async () => {
