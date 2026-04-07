@@ -31,12 +31,12 @@ async function main() {
   console.log("🌱 Seeding data for /seguir testing...\n")
 
   // 1. Create Guide
-  const hashedPw = await bcrypt.hash("demo1234", 10)
+  const hashedPw = await bcrypt.hash("TukQuantum123", 10)
   const guide = await p.guide.upsert({
-    where: { email: "guia@demo.com" },
+    where: { email: "tukquantum@tukquantum.com" },
     update: {},
     create: {
-      email: "guia@demo.com",
+      email: "tukquantum@tukquantum.com",
       name: "Javier Martínez",
       slug: "javier-montana",
       password: hashedPw,
@@ -131,7 +131,7 @@ async function main() {
   console.log("📋 Para probar /seguir:")
   console.log(`   1. npm run dev`)
   console.log(`   2. Abre http://localhost:3005/entrar`)
-  console.log(`   3. Login: test@demo.com / demo1234`)
+  console.log(`   3. Login: test@demo.com / TukQuantum123`)
   console.log(`   4. Abre http://localhost:3005/seguir/${activity.id}`)
   console.log(`   5. Click "COMENZAR SEGUIMIENTO"`)
   console.log("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
