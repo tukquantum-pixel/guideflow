@@ -12,6 +12,12 @@ COPY --from=deps /app/node_modules ./node_modules
 COPY . .
 RUN npx prisma generate
 ENV NEXT_TELEMETRY_DISABLED=1
+# Dummy build-time secrets so Next.js static analysis doesn't crash
+ENV AUTH_SECRET="build-time-placeholder"
+ENV MOBILE_JWT_SECRET="build-time-placeholder"
+ENV DATABASE_URL="postgresql://x:x@localhost:5432/x"
+ENV NEXTAUTH_URL="http://localhost:3005"
+ENV NEXT_PUBLIC_API_URL="http://localhost:3005"
 RUN npm run build
 
 # ── Stage 3: Production ──
