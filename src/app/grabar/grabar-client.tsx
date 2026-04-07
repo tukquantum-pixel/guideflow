@@ -126,7 +126,10 @@ export function GrabarClient({ userName }: { userName: string }) {
                 )
             }
         })
-        return () => { mapInstance.current?.remove(); mapInstance.current = null }
+        return () => {
+            try { mapInstance.current?.remove() } catch (e) { }
+            mapInstance.current = null
+        }
     }, [])
 
     // Switch layer
@@ -191,10 +194,38 @@ export function GrabarClient({ userName }: { userName: string }) {
         lastPointRef.current = p
     }, [state])
 
+    const wakeLockRef = useRef<any>(null)
+
+    const requestWakeLock = async () => {
+        try {
+            if ('wakeLock' in navigator && wakeLockRef.current === null) {
+                wakeLockRef.current = await (navigator as any).wakeLock.request('screen');
+                wakeLockRef.current.addEventListener('release', () => console.log('Wake Lock released'));
+            }
+        } catch (err) { console.error('Wake Lock error:', err); }
+    }
+
+    const releaseWakeLock = () => {
+        if (wakeLockRef.current !== null) {
+            wakeLockRef.current.release().then(() => { wakeLockRef.current = null; });
+        }
+    }
+
+    useEffect(() => {
+        const handleVisibilityChange = () => {
+            if (wakeLockRef.current !== null && document.visibilityState === 'visible' && state === "recording") {
+                requestWakeLock();
+            }
+        };
+        document.addEventListener('visibilitychange', handleVisibilityChange);
+        return () => document.removeEventListener('visibilitychange', handleVisibilityChange);
+    }, [state]);
+
     const startRecording = useCallback(() => {
         if (!navigator.geolocation) { setGpsError("unavailable"); return }
         setGpsError("none"); setState("recording"); startTimeRef.current = Date.now(); setAccuracy(null)
         timerRef.current = setInterval(() => setElapsed(Math.floor((Date.now() - startTimeRef.current) / 1000)), 1000)
+        requestWakeLock()
 
         // Try high accuracy first, fallback to low accuracy after 60s timeout
         const tryWatch = (highAccuracy: boolean) => {
@@ -217,9 +248,9 @@ export function GrabarClient({ userName }: { userName: string }) {
         tryWatch(true)
     }, [onPosition, handleGpsError])
 
-    const pauseRecording = () => { setState("paused"); if (watchIdRef.current !== null) navigator.geolocation.clearWatch(watchIdRef.current); if (timerRef.current) clearInterval(timerRef.current) }
-    const resumeRecording = () => { setState("recording"); timerRef.current = setInterval(() => setElapsed(Math.floor((Date.now() - startTimeRef.current) / 1000)), 1000); watchIdRef.current = navigator.geolocation.watchPosition(onPosition, handleGpsError, { enableHighAccuracy: true, maximumAge: 0, timeout: 60000 }) }
-    const stopRecording = () => { setState("done"); if (watchIdRef.current !== null) navigator.geolocation.clearWatch(watchIdRef.current); if (timerRef.current) clearInterval(timerRef.current); setFollowUser(false) }
+    const pauseRecording = () => { setState("paused"); if (watchIdRef.current !== null) navigator.geolocation.clearWatch(watchIdRef.current); if (timerRef.current) clearInterval(timerRef.current); releaseWakeLock(); }
+    const resumeRecording = () => { setState("recording"); timerRef.current = setInterval(() => setElapsed(Math.floor((Date.now() - startTimeRef.current) / 1000)), 1000); watchIdRef.current = navigator.geolocation.watchPosition(onPosition, handleGpsError, { enableHighAccuracy: true, maximumAge: 0, timeout: 60000 }); requestWakeLock(); }
+    const stopRecording = () => { setState("done"); if (watchIdRef.current !== null) navigator.geolocation.clearWatch(watchIdRef.current); if (timerRef.current) clearInterval(timerRef.current); setFollowUser(false); releaseWakeLock(); }
 
     const saveRoute = async () => {
         if (points.length < 2) return; setSaving(true)
@@ -240,7 +271,7 @@ export function GrabarClient({ userName }: { userName: string }) {
 
     const centerOnUser = () => { if (points.length > 0) { const l = points[points.length - 1]; mapInstance.current?.setView([l.lat, l.lng], 15); setFollowUser(true) } }
 
-    useEffect(() => { return () => { if (watchIdRef.current !== null) navigator.geolocation.clearWatch(watchIdRef.current); if (timerRef.current) clearInterval(timerRef.current) } }, [])
+    useEffect(() => { return () => { if (watchIdRef.current !== null) navigator.geolocation.clearWatch(watchIdRef.current); if (timerRef.current) clearInterval(timerRef.current); releaseWakeLock(); } }, [])
 
     const km = Math.round(distance / 100) / 10
     const speed = elapsed > 0 ? ((distance / 1000) / (elapsed / 3600)).toFixed(1) : "0.0"
