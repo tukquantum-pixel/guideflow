@@ -166,14 +166,30 @@ export function GrabarClient({ userName }: { userName: string }) {
 
     const onPosition = useCallback((pos: GeolocationPosition) => {
         setGpsError("none"); setAccuracy(pos.coords.accuracy)
+        
+        // 1. FILTERING: Ignore highly inaccurate points (common when falling back to cell towers)
+        // If accuracy is worse than 40 meters, we update the UI accuracy badge but don't draw the point or count distance.
+        if (state === "recording" && pos.coords.accuracy > 40) {
+            console.log("GPS Ignorado (poca precisión):", pos.coords.accuracy, "m");
+            return;
+        }
+
         const p: GeoPoint = { lat: pos.coords.latitude, lng: pos.coords.longitude, alt: pos.coords.altitude || 0, time: Date.now() }
         setPoints(prev => [...prev, p])
-        if (lastPointRef.current) {
+
+        if (lastPointRef.current && state === "recording") {
             const d = calcDist(lastPointRef.current, p)
-            if (d > 3) { setDistance(prev => prev + d); const g = p.alt - lastPointRef.current.alt; if (g > 0) setElevation(prev => prev + g) }
+            // 2. ANTI-DRIFT: Only sum distance if we moved more than 5 meters (ignores standing-still jitter)
+            // and require strict accuracy (<20m) to count towards total distance.
+            if (d > 5 && pos.coords.accuracy < 20) { 
+                setDistance(prev => prev + d); 
+                const g = p.alt - lastPointRef.current.alt; 
+                // Only count elevation if the change is significant to avoid altimeter noise
+                if (g > 2) setElevation(prev => prev + g) 
+            }
         }
         lastPointRef.current = p
-    }, [])
+    }, [state])
 
     const startRecording = useCallback(() => {
         if (!navigator.geolocation) { setGpsError("unavailable"); return }
@@ -194,15 +210,15 @@ export function GrabarClient({ userName }: { userName: string }) {
                         handleGpsError(err)
                     }
                 },
-                // Critical fix: 60s timeout to allow time for the user to press "Allow" in the permissions pop-up
-                { enableHighAccuracy: highAccuracy, maximumAge: 5000, timeout: highAccuracy ? 60000 : 120000 }
+                // Critical fix: maximumAge 0 forces fresh GPS poll. 60s timeout.
+                { enableHighAccuracy: highAccuracy, maximumAge: 0, timeout: highAccuracy ? 60000 : 120000 }
             )
         }
         tryWatch(true)
     }, [onPosition, handleGpsError])
 
     const pauseRecording = () => { setState("paused"); if (watchIdRef.current !== null) navigator.geolocation.clearWatch(watchIdRef.current); if (timerRef.current) clearInterval(timerRef.current) }
-    const resumeRecording = () => { setState("recording"); timerRef.current = setInterval(() => setElapsed(Math.floor((Date.now() - startTimeRef.current) / 1000)), 1000); watchIdRef.current = navigator.geolocation.watchPosition(onPosition, handleGpsError, { enableHighAccuracy: true, maximumAge: 5000, timeout: 60000 }) }
+    const resumeRecording = () => { setState("recording"); timerRef.current = setInterval(() => setElapsed(Math.floor((Date.now() - startTimeRef.current) / 1000)), 1000); watchIdRef.current = navigator.geolocation.watchPosition(onPosition, handleGpsError, { enableHighAccuracy: true, maximumAge: 0, timeout: 60000 }) }
     const stopRecording = () => { setState("done"); if (watchIdRef.current !== null) navigator.geolocation.clearWatch(watchIdRef.current); if (timerRef.current) clearInterval(timerRef.current); setFollowUser(false) }
 
     const saveRoute = async () => {
