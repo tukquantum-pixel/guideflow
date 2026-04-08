@@ -6,7 +6,7 @@ export type MapLayer = "street" | "satellite" | "topo"
 export const TILE_LAYERS: Record<MapLayer, { name: string; icon: string; url: string; attr: string; maxZoom?: number }> = {
     street: { name: "Callejero", icon: "🗺️", url: "https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", attr: "© OSM" },
     satellite: { name: "Satélite", icon: "🛰️", url: "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}", attr: "© ESRI, Maxar" },
-    topo: { name: "Topográfico 3D", icon: "🏔️", url: "https://a.tile.opentopomap.org/{z}/{x}/{y}.png", attr: "© OpenTopoMap", maxZoom: 17 },
+    topo: { name: "Topográfico 3D", icon: "🏔️", url: "https://mt1.google.com/vt/lyrs=p&x={x}&y={y}&z={z}", attr: "© Google Terrain", maxZoom: 19 },
 }
 
 // Brand colors — musgo green
