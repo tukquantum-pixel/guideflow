@@ -1,9 +1,9 @@
-﻿"use client"
+"use client"
 
 import { useState } from "react"
 import { useRouter } from "next/navigation"
 import { CreateActivityForm } from "./create-form"
-import { MountainIcon, ClockIcon, GroupIcon, PlusIcon, TrashIcon, EditIcon, CopyIcon } from "@/components/icons"
+import { MountainIcon, ClockIcon, GroupIcon, PlusIcon, TrashIcon, EditIcon, CopyIcon, ClipboardIcon, ChartIcon, UserIcon } from "@/components/icons"
 
 const CAT_ICONS: Record<string, string> = {
     hiking: "🥾", climbing: "🧗", biking: "🚵", kayak: "🏊", ski: "🎿", camping: "🏕️", other: "🧭",
@@ -34,9 +34,11 @@ export function ActivityList({ activities }: { activities: Activity[] }) {
     }
 
     return (
-        <div className="min-h-screen bg-niebla">
+        <div className="min-h-screen bg-niebla pb-20 md:pb-0">
             <nav className="border-b border-roca-dark/30 bg-white/80 backdrop-blur-sm sticky top-0 z-30">
                 <div className="max-w-6xl mx-auto px-4 md:px-6 py-4 flex items-center gap-4">
+                    <a href="/dashboard" className="text-musgo hover:text-musgo-dark transition text-sm font-medium">← Volver</a>
+                    <span className="text-granito/30">|</span>
                     <a href="/dashboard" className="text-lg font-bold text-pizarra">PATHY</a>
                     <span className="text-granito/30">›</span>
                     <span className="text-musgo font-medium">Actividades</span>
@@ -105,6 +107,16 @@ export function ActivityList({ activities }: { activities: Activity[] }) {
                     ))}
                 </div>
             </main>
+
+            {/* Mobile nav */}
+            <div className="md:hidden fixed bottom-0 left-0 right-0 bg-white border-t border-roca-dark/20 px-4 py-2 z-40">
+                <div className="flex justify-around">
+                    <a href="/dashboard" className="flex flex-col items-center text-granito text-xs py-1"><MountainIcon className="w-5 h-5 mb-0.5" />Inicio</a>
+                    <a href="/dashboard/activities" className="flex flex-col items-center text-musgo text-xs font-medium py-1"><ClipboardIcon className="w-5 h-5 mb-0.5" />Actividades</a>
+                    <a href="/dashboard/bookings" className="flex flex-col items-center text-granito text-xs py-1"><ChartIcon className="w-5 h-5 mb-0.5" />Reservas</a>
+                    <a href="/dashboard/profile" className="flex flex-col items-center text-granito text-xs py-1"><UserIcon className="w-5 h-5 mb-0.5" />Perfil</a>
+                </div>
+            </div>
         </div>
     )
 }

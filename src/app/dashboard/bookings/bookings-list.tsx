@@ -1,8 +1,8 @@
-﻿"use client"
+"use client"
 
 import { useRouter } from "next/navigation"
 import { useState, useMemo } from "react"
-import { ClipboardIcon, MoneyIcon, CalendarIcon, ChartIcon, PhoneIcon, MountainIcon, CategoryIcon, CheckIcon } from "@/components/icons"
+import { ClipboardIcon, MoneyIcon, CalendarIcon, ChartIcon, PhoneIcon, MountainIcon, CategoryIcon, CheckIcon, UserIcon } from "@/components/icons"
 
 interface Booking {
     id: string; customerName: string; customerEmail: string; customerPhone: string | null
@@ -83,9 +83,11 @@ export function BookingsList({ bookings }: { bookings: Booking[] }) {
     ]
 
     return (
-        <div className="min-h-screen bg-niebla">
+        <div className="min-h-screen bg-niebla pb-20 md:pb-0">
             <nav className="border-b border-roca-dark/20 bg-white/80 backdrop-blur-sm sticky top-0 z-30">
                 <div className="max-w-6xl mx-auto px-4 md:px-6 py-3.5 flex items-center gap-3">
+                    <a href="/dashboard" className="text-musgo hover:text-musgo-dark transition text-sm font-medium">← Volver</a>
+                    <span className="text-granito/30">|</span>
                     <a href="/dashboard" className="text-lg font-bold text-pizarra flex items-center gap-1.5"><MountainIcon className="w-4 h-4" /> PATHY</a>
                     <span className="text-granito/30">›</span>
                     <span className="text-musgo font-medium">Reservas</span>
@@ -198,6 +200,16 @@ export function BookingsList({ bookings }: { bookings: Booking[] }) {
                     </div>
                 )}
             </main>
+
+            {/* Mobile nav */}
+            <div className="md:hidden fixed bottom-0 left-0 right-0 bg-white border-t border-roca-dark/20 px-4 py-2 z-40">
+                <div className="flex justify-around">
+                    <a href="/dashboard" className="flex flex-col items-center text-granito text-xs py-1"><MountainIcon className="w-5 h-5 mb-0.5" />Inicio</a>
+                    <a href="/dashboard/activities" className="flex flex-col items-center text-granito text-xs py-1"><ClipboardIcon className="w-5 h-5 mb-0.5" />Actividades</a>
+                    <a href="/dashboard/bookings" className="flex flex-col items-center text-musgo text-xs font-medium py-1"><ChartIcon className="w-5 h-5 mb-0.5" />Reservas</a>
+                    <a href="/dashboard/profile" className="flex flex-col items-center text-granito text-xs py-1"><UserIcon className="w-5 h-5 mb-0.5" />Perfil</a>
+                </div>
+            </div>
         </div>
     )
 }
