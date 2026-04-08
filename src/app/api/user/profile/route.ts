@@ -37,5 +37,34 @@ export async function GET() {
     } catch (error) {
         console.error("[USER_PROFILE]", error)
         return NextResponse.json({ error: "Error interno" }, { status: 500 })
+}
+
+// PATCH /api/user/profile — Update AppUser profile
+export async function PATCH(req: Request) {
+    try {
+        const authed = await mobileOrSessionAuth()
+        if (!authed) return NextResponse.json({ error: "No autenticado" }, { status: 401 })
+
+        const body = await req.json()
+        const { name, avatarUrl } = body
+
+        const updatedData: any = {}
+        if (name !== undefined) updatedData.name = name
+        if (avatarUrl !== undefined) updatedData.avatarUrl = avatarUrl
+
+        if (Object.keys(updatedData).length === 0) {
+            return NextResponse.json({ error: "Nada que actualizar" }, { status: 400 })
+        }
+
+        const user = await prisma.appUser.update({
+            where: { id: authed.id },
+            data: updatedData,
+            select: { id: true, name: true, avatarUrl: true }
+        })
+
+        return NextResponse.json(user)
+    } catch (error) {
+        console.error("[USER_PROFILE_PATCH]", error)
+        return NextResponse.json({ error: "Error interno al actualizar" }, { status: 500 })
     }
 }

@@ -1,8 +1,8 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useRef } from "react"
 import Link from "next/link"
-import { DistanceIcon, ElevationIcon, DurationIcon, MapIcon, StarIcon, MountainIcon, BookmarkIcon, ChartIcon, type IconProps } from "@/components/icons"
+import { DistanceIcon, ElevationIcon, DurationIcon, MapIcon, StarIcon, MountainIcon, BookmarkIcon, ChartIcon, EditIcon, XIcon, CheckIcon, type IconProps } from "@/components/icons"
 import { AchievementsSection } from "@/components/achievements-section"
 import { WeeklyChallengeCard } from "@/components/weekly-challenge-card"
 import { PremiumTrigger } from "@/components/premium-trigger"
@@ -27,6 +27,15 @@ export function PerfilClient({ userName, avatarUrl, plan, memberSince, stats, re
     const isOnline = useNetwork()
     const [pendingCount, setPendingCount] = useState(0)
     const [isSyncing, setIsSyncing] = useState(false)
+    
+    // Perfil Edit States
+    const [isEditing, setIsEditing] = useState(false)
+    const [editName, setEditName] = useState(userName)
+    const [editAvatar, setEditAvatar] = useState(avatarUrl)
+    const [isSaving, setIsSaving] = useState(false)
+    const [uploadingAvatar, setUploadingAvatar] = useState(false)
+    const avatarInputRef = useRef<HTMLInputElement>(null)
+
     const isPremium = plan === "EXPLORER" || plan === "PEAK"
     const maxKm = Math.max(...monthlyKm.map(m => m.km), 1)
 
@@ -41,6 +50,32 @@ export function PerfilClient({ userName, avatarUrl, plan, memberSince, stats, re
         setIsSyncing(false)
         if (success) setPendingCount(0)
         else setPendingCount(getOfflineQueue().length)
+    }
+
+    const handleAvatarChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+        const file = e.target.files?.[0]
+        if (!file) return
+        setUploadingAvatar(true)
+        try {
+            const formData = new FormData(); formData.append("file", file)
+            const res = await fetch("/api/upload", { method: "POST", body: formData })
+            const data = await res.json()
+            if (res.ok && data.url) setEditAvatar(data.url)
+            else alert(data.error || "Error subiendo archivo")
+        } catch { alert("Error subiendo foto") }
+        setUploadingAvatar(false)
+    }
+
+    const handleSaveProfile = async () => {
+        setIsSaving(true)
+        try {
+            const res = await fetch("/api/user/profile", {
+                method: "PATCH", headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ name: editName, avatarUrl: editAvatar })
+            })
+            if (res.ok) window.location.reload()
+            else { alert("Error al guardar perfil"); setIsSaving(false) }
+        } catch { alert("Error de red"); setIsSaving(false) }
     }
 
     return (
@@ -72,7 +107,10 @@ export function PerfilClient({ userName, avatarUrl, plan, memberSince, stats, re
                 )}
 
                 {/* Profile header */}
-                <div className="bg-gradient-to-br from-musgo to-musgo-dark rounded-xl p-6 text-white">
+                <div className="bg-gradient-to-br from-musgo to-musgo-dark rounded-xl p-6 text-white relative">
+                    <button onClick={() => setIsEditing(true)} className="absolute top-4 right-4 p-2.5 bg-white/10 hover:bg-white/20 rounded-full transition backdrop-blur-md" title="Editar Perfil">
+                        <EditIcon className="w-5 h-5 text-white" />
+                    </button>
                     <div className="flex items-center gap-4">
                         <div className="w-16 h-16 rounded-full bg-white/20 overflow-hidden ring-2 ring-white/30 flex items-center justify-center">
                             {avatarUrl ? <img src={avatarUrl} className="w-full h-full object-cover" alt="" /> :
@@ -186,6 +224,48 @@ export function PerfilClient({ userName, avatarUrl, plan, memberSince, stats, re
                     </div>
                 )}
             </main>
+
+            {/* Modal de edición */}
+            {isEditing && (
+                <div className="fixed inset-0 bg-pizarra/80 z-[100] flex items-center justify-center p-4 backdrop-blur-sm animate-in fade-in duration-200">
+                    <div className="bg-white rounded-2xl w-full max-w-sm overflow-hidden shadow-2xl animate-in zoom-in-95 duration-200">
+                        <div className="bg-musgo text-white p-4 flex justify-between items-center">
+                            <h3 className="font-bold">Editar Perfil</h3>
+                            <button onClick={() => setIsEditing(false)} className="p-1 rounded-full hover:bg-white/20 transition"><XIcon className="w-6 h-6" /></button>
+                        </div>
+                        <div className="p-5 space-y-6">
+                            <div className="flex flex-col items-center">
+                                <div 
+                                    className="w-24 h-24 rounded-full bg-niebla border-2 border-dashed border-roca-dark/40 overflow-hidden relative group cursor-pointer flex items-center justify-center shadow-inner"
+                                    onClick={() => avatarInputRef.current?.click()}
+                                >
+                                    {editAvatar ? <img src={editAvatar} className="w-full h-full object-cover" /> : <span className="text-3xl text-granito font-bold">{editName[0]?.toUpperCase() || "?"}</span>}
+                                    <div className="absolute inset-0 bg-pizarra/50 flex flex-col items-center justify-center opacity-0 group-hover:opacity-100 transition">
+                                        <EditIcon className="w-6 h-6 text-white" />
+                                    </div>
+                                    {uploadingAvatar && <div className="absolute inset-0 bg-pizarra/70 flex items-center justify-center"><span className="text-white text-xs font-medium animate-pulse">Subiendo...</span></div>}
+                                </div>
+                                <input type="file" ref={avatarInputRef} className="hidden" accept="image/jpeg,image/png,image/webp" onChange={handleAvatarChange} />
+                                <p className="text-xs text-musgo font-medium mt-2 bg-musgo/10 px-3 py-1 rounded-full cursor-pointer hover:bg-musgo/20 transition" onClick={() => avatarInputRef.current?.click()}>Cambiar foto de perfil</p>
+                            </div>
+                            
+                            <div>
+                                <label className="block text-sm font-semibold text-pizarra mb-1.5 focus-within:text-musgo transition">Nombre / Alias en la app</label>
+                                <input type="text" value={editName} onChange={(e) => setEditName(e.target.value)}
+                                    className="w-full border border-roca-dark/20 rounded-xl px-4 py-3.5 text-pizarra font-medium bg-white focus:outline-none focus:ring-2 focus:ring-musgo focus:border-transparent transition shadow-sm"
+                                    placeholder="Tu nombre completo"
+                                />
+                            </div>
+
+                            <button onClick={handleSaveProfile} disabled={isSaving || uploadingAvatar || !editName.trim()} 
+                                className="w-full py-3.5 bg-musgo text-white font-bold rounded-xl flex items-center justify-center gap-2 hover:bg-musgo-dark transition shadow-lg shadow-musgo/30 disabled:opacity-50 disabled:shadow-none">
+                                {isSaving ? "Guardando..." : <><CheckIcon className="w-5 h-5" /> Guardar Cambios</>}
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
             <MobileTabBar active="perfil" />
         </div>
     )
