@@ -5,6 +5,8 @@ import Link from "next/link"
 import { MapIcon, DistanceIcon, ElevationIcon, DurationIcon, CheckIcon, MountainIcon } from "@/components/icons"
 import { MobileTabBar } from "@/components/mobile-tab-bar"
 import { TILE_LAYERS, TRACK_STYLE, currentPosHtml, ensureLeafletCss, cleanMapContainer, type MapLayer } from "@/lib/map-utils"
+import { useNetwork } from "@/hooks/use-network"
+import { enqueueRecording } from "@/lib/offline-queue"
 
 type RecState = "idle" | "recording" | "paused" | "done"
 type GpsError = "denied" | "unavailable" | "timeout" | "none"
@@ -54,6 +56,7 @@ function AccuracyBadge({ accuracy }: { accuracy: number | null }) {
 }
 
 export function GrabarClient({ userName }: { userName: string }) {
+    const isOnline = useNetwork()
     const [state, setState] = useState<RecState>("idle")
     const [points, setPoints] = useState<GeoPoint[]>([])
     const [distance, setDistance] = useState(0)
@@ -62,6 +65,7 @@ export function GrabarClient({ userName }: { userName: string }) {
     const [gpsError, setGpsError] = useState<GpsError>("none")
     const [saving, setSaving] = useState(false)
     const [saved, setSaved] = useState(false)
+    const [offlineSaved, setOfflineSaved] = useState(false)
     const [title, setTitle] = useState("")
     const [showConfetti, setShowConfetti] = useState(false)
     const [followUser, setFollowUser] = useState(true)
@@ -254,16 +258,37 @@ export function GrabarClient({ userName }: { userName: string }) {
     const stopRecording = () => { setState("done"); if (watchIdRef.current !== null) navigator.geolocation.clearWatch(watchIdRef.current); if (timerRef.current) clearInterval(timerRef.current); setFollowUser(false); releaseWakeLock(); }
 
     const saveRoute = async () => {
-        if (points.length < 2) return; setSaving(true)
+        if (points.length < 2) return; 
+        setSaving(true)
+        const payload = { title: title || `Ruta ${new Date().toLocaleDateString("es-ES")}`, coordinates: points.map(p => [p.lng, p.lat, p.alt, p.time]), distance, elevationGain: elevation, duration: elapsed, startedAt: new Date(startTimeRef.current).toISOString(), finishedAt: new Date().toISOString() };
+        
+        const saveOffline = () => {
+             enqueueRecording(payload);
+             setOfflineSaved(true);
+             setSaved(true);
+             setShowConfetti(true);
+             setTimeout(() => setShowConfetti(false), 3000);
+             setSaving(false);
+        };
+
+        if (!isOnline) {
+            saveOffline();
+            return;
+        }
+
         try {
-            const res = await fetch("/api/user/recorded-routes", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ title: title || `Ruta ${new Date().toLocaleDateString("es-ES")}`, coordinates: points.map(p => [p.lng, p.lat, p.alt, p.time]), distance, elevationGain: elevation, duration: elapsed, startedAt: new Date(startTimeRef.current).toISOString(), finishedAt: new Date().toISOString() }) })
+            const res = await fetch("/api/user/recorded-routes", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload) })
             if (res.ok) { setSaved(true); setShowConfetti(true); setTimeout(() => setShowConfetti(false), 3000) }
-        } catch { }; setSaving(false)
+            else { saveOffline(); }
+        } catch { 
+            saveOffline();
+        }; 
+        setSaving(false)
     }
 
     const resetAll = () => {
         setState("idle"); setPoints([]); setDistance(0); setElevation(0); setElapsed(0)
-        setSaved(false); setTitle(""); setGpsError("none"); setFollowUser(true); setAccuracy(null); lastPointRef.current = null
+        setSaved(false); setOfflineSaved(false); setTitle(""); setGpsError("none"); setFollowUser(true); setAccuracy(null); lastPointRef.current = null
         polylineRef.current?.setLatLngs([]); if (markerRef.current) { mapInstance.current?.removeLayer(markerRef.current); markerRef.current = null }
         if (startMarkerRef.current) { mapInstance.current?.removeLayer(startMarkerRef.current); startMarkerRef.current = null }
         if (accuracyCircleRef.current) { mapInstance.current?.removeLayer(accuracyCircleRef.current); accuracyCircleRef.current = null }
@@ -405,6 +430,7 @@ export function GrabarClient({ userName }: { userName: string }) {
                                 <div className="bg-musgo/10 border border-musgo/20 rounded-2xl p-5 text-center space-y-3">
                                     <MountainIcon className="w-10 h-10 text-musgo mx-auto" />
                                     <p className="font-bold text-pizarra text-lg">🎉 ¡Ruta guardada!</p>
+                                    {offlineSaved && <p className="text-sm font-semibold text-amber-700 bg-amber-500/20 border border-amber-500/30 rounded-xl px-3 py-2">⚠️ Guardada localmente por falta de cobertura. Se subirá sola al recuperar red.</p>}
                                     <p className="text-sm text-granito">{title || "Tu ruta"} · {km} km · +{Math.round(elevation)}m</p>
                                     <div className="flex gap-2 justify-center">
                                         <a href={`https://wa.me/?text=¡He completado ${km}km con PATHY! 🏔️`} target="_blank" rel="noopener" className="px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg text-sm font-medium transition">📱 WhatsApp</a>

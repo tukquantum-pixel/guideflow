@@ -1,5 +1,6 @@
 "use client"
 
+import { useState, useEffect } from "react"
 import Link from "next/link"
 import { DistanceIcon, ElevationIcon, DurationIcon, MapIcon, StarIcon, MountainIcon, BookmarkIcon, ChartIcon, type IconProps } from "@/components/icons"
 import { AchievementsSection } from "@/components/achievements-section"
@@ -8,6 +9,8 @@ import { PremiumTrigger } from "@/components/premium-trigger"
 import { MobileTabBar } from "@/components/mobile-tab-bar"
 import type { UserAchievement } from "@/lib/achievements"
 import type { WeeklyChallenge } from "@/lib/weekly-challenge"
+import { useNetwork } from "@/hooks/use-network"
+import { getOfflineQueue, syncPendingRecordings } from "@/lib/offline-queue"
 
 interface Props {
     userName: string; avatarUrl: string | null; plan: string
@@ -21,8 +24,24 @@ interface Props {
 }
 
 export function PerfilClient({ userName, avatarUrl, plan, memberSince, stats, records, monthlyKm, recentRoutes, achievements, challenge, isGuide }: Props) {
+    const isOnline = useNetwork()
+    const [pendingCount, setPendingCount] = useState(0)
+    const [isSyncing, setIsSyncing] = useState(false)
     const isPremium = plan === "EXPLORER" || plan === "PEAK"
     const maxKm = Math.max(...monthlyKm.map(m => m.km), 1)
+
+    useEffect(() => {
+        // Only run on client
+        setPendingCount(getOfflineQueue().length)
+    }, [isOnline])
+
+    const handleSync = async () => {
+        setIsSyncing(true)
+        const success = await syncPendingRecordings()
+        setIsSyncing(false)
+        if (success) setPendingCount(0)
+        else setPendingCount(getOfflineQueue().length)
+    }
 
     return (
         <div className="min-h-screen bg-niebla pb-20 md:pb-0">
@@ -34,6 +53,24 @@ export function PerfilClient({ userName, avatarUrl, plan, memberSince, stats, re
             </nav>
 
             <main className="max-w-3xl mx-auto px-4 py-6 space-y-6">
+                {!isOnline && (
+                    <div className="bg-amber-100 border border-amber-300 text-amber-800 rounded-xl p-4 flex flex-col items-center justify-center text-center shadow-sm">
+                        <p className="font-bold flex items-center gap-1.5"><MountainIcon className="w-5 h-5"/> Modo Offline Activo</p>
+                        <p className="text-sm mt-1">Sin conexión. Puedes seguir grabando rutas, se guardarán y subirán cuando recuperes la red.</p>
+                        {pendingCount > 0 && <p className="text-xs font-semibold mt-2 text-amber-900 bg-amber-200/50 px-3 py-1 rounded-full">{pendingCount} rutas pendientes</p>}
+                    </div>
+                )}
+                
+                {isOnline && pendingCount > 0 && (
+                    <div className="bg-musgo/10 border border-musgo/30 rounded-xl p-4 flex flex-col items-center justify-center text-center shadow-sm">
+                        <p className="font-bold text-pizarra mt-1">Rutas pendientes de subir</p>
+                        <p className="text-sm text-granito mt-1">Tienes conectividad de vuelta. Puedes intentar forzar la subida.</p>
+                        <button onClick={handleSync} disabled={isSyncing} className="mt-3 px-5 py-2.5 bg-musgo text-white rounded-xl text-sm font-bold shadow-md hover:bg-musgo-dark disabled:opacity-50 transition">
+                            {isSyncing ? "Subiendo..." : `Subir ${pendingCount} rutas ahora ⬆️`}
+                        </button>
+                    </div>
+                )}
+
                 {/* Profile header */}
                 <div className="bg-gradient-to-br from-musgo to-musgo-dark rounded-xl p-6 text-white">
                     <div className="flex items-center gap-4">
