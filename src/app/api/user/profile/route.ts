@@ -1,6 +1,20 @@
 import { NextResponse } from "next/server"
 import { prisma } from "@/lib/db"
+import { auth } from "@/lib/auth"
 import { mobileOrSessionAuth } from "@/lib/mobile-or-session-auth"
+
+// Helper: get authenticated user (guide or app user)
+async function getAuthUser() {
+    // 1. Try guide session first
+    const session = await auth()
+    if (session?.user?.id) {
+        return { id: session.user.id, email: session.user.email ?? "", role: (session.user as any).role }
+    }
+    // 2. Fallback to mobile/app user session
+    const authed = await mobileOrSessionAuth()
+    if (authed) return { id: authed.id, email: authed.email, role: "user" }
+    return null
+}
 
 // GET /api/user/profile — AppUser profile (NOT Guide)
 export async function GET() {
@@ -40,10 +54,10 @@ export async function GET() {
     }
 }
 
-// PATCH /api/user/profile — Update AppUser profile
+// PATCH /api/user/profile — Update profile (Guide or AppUser)
 export async function PATCH(req: Request) {
     try {
-        const authed = await mobileOrSessionAuth()
+        const authed = await getAuthUser()
         if (!authed) return NextResponse.json({ error: "No autenticado" }, { status: 401 })
 
         const body = await req.json()
@@ -57,6 +71,21 @@ export async function PATCH(req: Request) {
             return NextResponse.json({ error: "Nada que actualizar" }, { status: 400 })
         }
 
+        // Update Guide if role is guide
+        if (authed.role === "guide") {
+            const guide = await prisma.guide.update({
+                where: { id: authed.id },
+                data: updatedData,
+                select: { id: true, name: true, avatarUrl: true }
+            })
+            // Also update linked AppUser if exists
+            if (authed.email) {
+                await prisma.appUser.updateMany({ where: { email: authed.email }, data: updatedData }).catch(() => {})
+            }
+            return NextResponse.json(guide)
+        }
+
+        // Update AppUser
         const user = await prisma.appUser.update({
             where: { id: authed.id },
             data: updatedData,
