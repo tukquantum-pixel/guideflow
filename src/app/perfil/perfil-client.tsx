@@ -5,6 +5,7 @@ import { DistanceIcon, ElevationIcon, DurationIcon, MapIcon, StarIcon, MountainI
 import { AchievementsSection } from "@/components/achievements-section"
 import { WeeklyChallengeCard } from "@/components/weekly-challenge-card"
 import { PremiumTrigger } from "@/components/premium-trigger"
+import { MobileTabBar } from "@/components/mobile-tab-bar"
 import type { UserAchievement } from "@/lib/achievements"
 import type { WeeklyChallenge } from "@/lib/weekly-challenge"
 
@@ -24,7 +25,7 @@ export function PerfilClient({ userName, avatarUrl, plan, memberSince, stats, re
     const maxKm = Math.max(...monthlyKm.map(m => m.km), 1)
 
     return (
-        <div className="min-h-screen bg-niebla">
+        <div className="min-h-screen bg-niebla pb-20 md:pb-0">
             <nav className="bg-pizarra text-white py-3">
                 <div className="max-w-3xl mx-auto px-4 flex items-center justify-between">
                     <Link href={isGuide ? "/dashboard" : "/explorar"} className="text-musgo-light hover:text-white transition text-sm">← Volver</Link>
@@ -148,6 +149,7 @@ export function PerfilClient({ userName, avatarUrl, plan, memberSince, stats, re
                     </div>
                 )}
             </main>
+            <MobileTabBar active="perfil" />
         </div>
     )
 }

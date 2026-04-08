@@ -3,6 +3,7 @@
 import { useState, useRef, useCallback, useEffect } from "react"
 import Link from "next/link"
 import { MapIcon, DistanceIcon, ElevationIcon, DurationIcon, CheckIcon, MountainIcon } from "@/components/icons"
+import { MobileTabBar } from "@/components/mobile-tab-bar"
 import { TILE_LAYERS, TRACK_STYLE, currentPosHtml, ensureLeafletCss, cleanMapContainer, type MapLayer } from "@/lib/map-utils"
 
 type RecState = "idle" | "recording" | "paused" | "done"
@@ -278,6 +279,7 @@ export function GrabarClient({ userName }: { userName: string }) {
     const isActive = state === "recording" || state === "paused"
 
     return (
+        <>
         <div className="min-h-screen bg-niebla flex flex-col">
             <nav className="bg-pizarra text-white py-2.5 flex-shrink-0">
                 <div className="max-w-lg mx-auto px-4 flex items-center justify-between">
@@ -419,5 +421,6 @@ export function GrabarClient({ userName }: { userName: string }) {
                 </>
             )}
         </div>
-    )
+        {state === "idle" && <MobileTabBar active="grabar" />}
+    </>)
 }

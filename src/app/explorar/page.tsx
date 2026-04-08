@@ -6,6 +6,7 @@ import { unstable_cache } from "next/cache"
 import { CATEGORIES } from "@/lib/professions"
 import { NavBar } from "@/components/nav-bar"
 import { CategoryIcon, MountainIcon, DistanceIcon, ElevationIcon, DurationIcon, CheckIcon, CompassIcon } from "@/components/icons"
+import { MobileTabBar } from "@/components/mobile-tab-bar"
 import { Suspense } from "react"
 
 export const metadata = { title: "Explorar Rutas | PATHY", description: "Descubre rutas de guías profesionales verificados" }
@@ -40,7 +41,7 @@ export default async function ExplorarPage({ searchParams }: { searchParams: Pro
     const activities = await getActivities(params.q, params.cat, params.dif)
 
     return (
-        <div className="min-h-screen bg-niebla">
+        <div className="min-h-screen bg-niebla pb-20 md:pb-0">
             <Suspense fallback={<nav className="bg-pizarra py-4"><div className="max-w-6xl mx-auto px-4 flex items-center justify-between"><span className="text-xl font-bold text-white">⛰️ PATHY</span><div className="h-8 w-32 bg-white/10 animate-pulse rounded" /></div></nav>}>
                 <NavBar variant="dark" />
             </Suspense>
@@ -127,6 +128,7 @@ export default async function ExplorarPage({ searchParams }: { searchParams: Pro
                     </div>
                 )}
             </main>
+            <MobileTabBar active="explorar" />
         </div>
     )
 }

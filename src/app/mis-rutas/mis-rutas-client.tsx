@@ -5,6 +5,7 @@ import { useState } from "react"
 import { DistanceIcon, ElevationIcon, DurationIcon, MapIcon, CategoryIcon, BookmarkIcon, DownloadIcon, SearchIcon, MountainIcon, CheckIcon, StarIcon, ChartIcon, PhotoIcon, type IconProps } from "@/components/icons"
 import { WelcomeCard } from "@/components/welcome-card"
 import { PremiumTrigger } from "@/components/premium-trigger"
+import { MobileTabBar } from "@/components/mobile-tab-bar"
 
 interface SavedRouteItem {
     id: string; savedAt: Date; notes: string | null
@@ -41,7 +42,7 @@ export function MisRutasClient({ routes, plan, stats, userName, isGuide }: Props
     }
 
     return (
-        <div className="min-h-screen bg-niebla">
+        <div className="min-h-screen bg-niebla pb-20 md:pb-0">
             {/* Header */}
             <nav className="bg-pizarra text-white py-3">
                 <div className="max-w-3xl mx-auto px-4 flex items-center justify-between">
@@ -198,6 +199,7 @@ export function MisRutasClient({ routes, plan, stats, userName, isGuide }: Props
                     </div>
                 )}
             </main>
+            <MobileTabBar active="mis-rutas" />
         </div>
     )
 }
