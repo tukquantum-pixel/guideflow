@@ -37,6 +37,7 @@ export async function GET() {
     } catch (error) {
         console.error("[USER_PROFILE]", error)
         return NextResponse.json({ error: "Error interno" }, { status: 500 })
+    }
 }
 
 // PATCH /api/user/profile — Update AppUser profile
